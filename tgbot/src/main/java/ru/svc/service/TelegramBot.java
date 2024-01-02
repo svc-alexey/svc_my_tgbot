@@ -1,16 +1,21 @@
 package ru.svc.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.svc.config.BotConfig;
+import ru.svc.model.User;
+import ru.svc.model.UserRepository;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +23,8 @@ import java.util.List;
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
 
+    @Autowired
+    private UserRepository userRepository;
     private static final String HELP_TEXT = "Do not touch this";
     final BotConfig botConfig;
 
@@ -47,6 +54,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             switch (messageText) {
                 case "/start":
+                    registerUser(update.getMessage());
                     startCommandRecieved(chatId, update.getMessage().getChat().getFirstName());
                     break;
                 case "/help":
@@ -58,11 +66,28 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    private void registerUser(Message message) {
+
+        if (userRepository.findById(message.getChatId()).isEmpty()) {
+            var chatId = message.getChatId();
+            var chat = message.getChat();
+            User user = new User();
+            user.setChatId(chatId);
+            user.setFirstName(chat.getFirstName());
+            user.setLastName(chat.getLastName());
+            user.setUserName(chat.getUserName());
+            user.setRegisterAt(new Timestamp(System.currentTimeMillis()));
+
+            userRepository.save(user);
+        }
+
+    }
+
     private void startCommandRecieved (long chatId, String username)  {
 
         String answer = "Hi, " + username + ", Tovarich!";
 
-        log.info("Reply to user: " + username);
+        //log.info("Reply to user: " + username);
 
         sendMessage(chatId, answer);
 
